@@ -1,6 +1,6 @@
 # TIA-LLM-Benchmark
 
-**Can Large Language Models Generate Transportation Impact Analysis Recommendations?**
+**Spatial Grounding Failure in LLM-Generated Traffic Impact Analysis Recommendations: A Structured Evaluation Using Public Environmental Review Document**
 A benchmark study on conditioned mitigation generation using publicly available environmental review documents.
 
 > *Paper submitted to Artificial Intelligence for Transportation*
