@@ -207,21 +207,6 @@ The script checkpoints after each fold to `loo_progress.json` and can be resumed
 
 ---
 
-## Citation
-
-```bibtex
-@article{bae2026tia,
-  title   = {Can Large Language Models Generate Transportation Impact Analysis
-             Recommendations? A Benchmark Study on Conditioned Mitigation
-             Generation Using Publicly Available Environmental Review Documents},
-  author  = {Bae, Andrew},
-  journal = {Artificial Intelligence for Transportation},
-  year    = {2026}
-}
-```
-
----
-
 ## License
 
 Dataset construction code: MIT License.
