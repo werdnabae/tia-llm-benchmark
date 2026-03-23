@@ -1,0 +1,24 @@
+# TIA-LLM-Benchmark
+# Install with: pip install -r requirements.txt
+
+# PDF parsing
+pdfplumber>=0.11
+
+# HTTP — scraping, CF Workers AI, MEPA API
+requests>=2.32
+
+# HTML parsing
+beautifulsoup4>=4.14
+lxml>=6.0
+
+# Numerical (cosine similarity for RAG)
+numpy>=1.26
+
+# Fine-tuning — only needed for finetune/finetune_loo.py
+# torch>=2.0
+# transformers>=4.40
+# peft>=0.10
+# bitsandbytes>=0.43
+# datasets>=2.18
+# accelerate>=0.27
+# safetensors>=0.4

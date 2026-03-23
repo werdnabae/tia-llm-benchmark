@@ -1,0 +1,54 @@
+# API credentials — never commit
+pipeline/.env
+.env
+
+# Large data files
+data/raw/
+data/parsed/
+data/chunks/
+data/embeddings/
+data/split/
+data/predictions/
+data/predictions_main/
+data/predictions_rag/
+data/predictions_fewshot/
+data/predictions_c/
+data/predictions_full/
+data/predictions_finetuned/
+data/lora_adapter/
+data/finetune_train.jsonl
+data/finetune_b64.txt
+
+# Logs (regenerated on each run)
+data/logs/
+
+# Fine-tuning checkpoints
+finetune/adapter_fold_*/
+finetune/checkpoints/
+loo_progress.json
+loo_training.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.pdf
+paper/*.fls
+paper/*.fdb_latexmk
+paper/_minted-main/
+
+# macOS
+.DS_Store
+Icon

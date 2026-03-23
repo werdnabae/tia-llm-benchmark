@@ -1,0 +1,583 @@
+{
+  "CEQ-CA-010282": {
+    "case_id": "CEQ-CA-010282",
+    "fold_idx": 0,
+    "finetune_id": "d7606f43-f62d-4549-9905-52ec340b4f4b",
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Lafayette St and El Camino Real",
+          "measure_type": "no_mitigation_required",
+          "description": "No mitigation measures are required for the failing intersections identified in the traffic analysis report.",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "recommendation_id": "R-01",
+        "location": "Future developments",
+        "measure_type": "access_modification",
+        "description": "Driveways and alleys of future development should meet the minimum width requirements in the City Code and SCDPP",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      },
+      {
+        "recommendation_id": "R-02",
+        "location": "Future developments",
+        "measure_type": "access_modification",
+        "description": "Future developments should evaluate sight distance at the project driveways/vehicle access points",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      },
+      {
+        "recommendation_id": "R-03",
+        "location": "Multi-use curb lane",
+        "measure_type": "pedestrian_improvement",
+        "description": "Passenger loading zones should be provided along the fronting street in the multi-use curb lane as planned by the SCDPP",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "city"
+      },
+      {
+        "recommendation_id": "R-04",
+        "location": "Alleys and loading entrances",
+        "measure_type": "access_modification",
+        "description": "Truck and service vehicles would access the individual developments via the alleys and loading entrances",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      },
+      {
+        "recommendation_id": "R-05",
+        "location": "Future developments",
+        "measure_type": "road_widening",
+        "description": "Future developments in the plan area should be required to minimize curb cuts",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      },
+      {
+        "recommendation_id": "R-06",
+        "location": "Future developments",
+        "measure_type": "pedestrian_improvement",
+        "description": "Future development should provide adequate width of sidewalks",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      },
+      {
+        "recommendation_id": "R-07",
+        "location": "Future developments",
+        "measure_type": "pedestrian_improvement",
+        "description": "Future developments should be required to provide secure indoor bicycle parking",
+        "addresses_issue": null,
+        "timing": "prior_to_occupancy",
+        "responsible_party": "applicant"
+      }
+    ],
+    "train_time_s": 533
+  },
+  "CEQ-CA-051151": {
+    "case_id": "CEQ-CA-051151",
+    "fold_idx": 1,
+    "finetune_id": "800159d0-e7d2-41dd-ae96-1c0d9e3ae43f",
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Otay Mesa Road west of Alta Road to east of Enrico Drive",
+        "measure_type": "road_widening",
+        "description": "restripe the existing two (2) lane roadway to provide one(1) lane in each direction plus a continuous center turn lane"
+      },
+      {
+        "location": "Otay Mesa Road/Alta Road intersection",
+        "measure_type": "new_traffic_signal",
+        "description": "signalize the intersection"
+      },
+      {
+        "location": "Calzada De La Fuente",
+        "measure_type": "access_modification",
+        "description": "construct a cul-de-sac at the eastern terminus"
+      }
+    ],
+    "train_time_s": 532
+  },
+  "CEQ-CA-060428": {
+    "case_id": "CEQ-CA-060428",
+    "fold_idx": 2,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "California Avenue & Arlington Avenue (#7)",
+          "measure_type": "no_mitigation_required",
+          "description": "No mitigation is required for the failing intersection.",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Streeter Avenue & Arlington Avenue (#6)",
+        "measure_type": "signal_timing_optimization",
+        "description": "Modify the traffic signal cycle length to provide a 130-second cycle"
+      }
+    ],
+    "train_time_s": 533
+  },
+  "CEQ-CA-070065": {
+    "case_id": "CEQ-CA-070065",
+    "fold_idx": 3,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Cherry Avenue and Jurupa Avenue",
+          "measure_type": "tdm_measure",
+          "description": "Implement a Transportation Demand Management (TDM) Program",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Cherry Avenue and Jurupa Avenue",
+        "measure_type": "add_turn_lane",
+        "description": "Add a westbound through lane. Add overlap phasing to the southbound right-turn lane."
+      }
+    ],
+    "train_time_s": 533
+  },
+  "CEQ-CA-070271": {
+    "case_id": "CEQ-CA-070271",
+    "fold_idx": 4,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Santa Anita Avenue/Wheeler Avenue",
+          "measure_type": "no_mitigation_required",
+          "description": "No mitigation is required for this intersection.",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Project site access",
+        "measure_type": "access_modification",
+        "description": "Provide wayfinding signage at all parking garage ingress points"
+      },
+      {
+        "location": "Project site access",
+        "measure_type": "access_modification",
+        "description": "Provide wayfinding signage within the parking garage"
+      },
+      {
+        "location": "Santa Clara Street",
+        "measure_type": "access_modification",
+        "description": "Restrict northbound left-turning movements onto Santa Clara Street"
+      }
+    ],
+    "train_time_s": 326
+  },
+  "CEQ-CA-080060": {
+    "case_id": "CEQ-CA-080060",
+    "fold_idx": 5,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "I-215 NB Ramps & Ramona Exwy.",
+          "measure_type": "no_mitigation_required",
+          "description": "None",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Driveway 1 & Perry Street (#1)",
+        "measure_type": "access_modification"
+      },
+      {
+        "location": "Driveway 2 & Martin Street (#2)",
+        "measure_type": "access_modification"
+      },
+      {
+        "location": "Driveway 3 & Martin Street (#3)",
+        "measure_type": "access_modification"
+      },
+      {
+        "location": "Harvill Avenue & Driveway 4 (#5)",
+        "measure_type": "access_modification"
+      },
+      {
+        "location": "Harvill Avenue",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "Perry Street",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "Martin Street",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "Harvill Av. & Perry St.",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "Harvill Av. & Cajalco Exwy.",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "I-215 SB Ramps & Ramona Exwy.",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "I-215 NB Ramps & Ramona Exwy.",
+        "measure_type": "add_turn_lane"
+      }
+    ],
+    "train_time_s": 438
+  },
+  "CEQ-CA-080668": {
+    "case_id": "CEQ-CA-080668",
+    "fold_idx": 6,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Project site",
+        "measure_type": "transit_improvement",
+        "description": "work in conjunction with AVTA to potentially provide bus service to the site"
+      }
+    ],
+    "train_time_s": 433
+  },
+  "CEQ-CA-101010": {
+    "case_id": "CEQ-CA-101010",
+    "fold_idx": 7,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Leon Road & Scott Road (#13)",
+          "measure_type": "no_mitigation_required",
+          "description": "No mitigation is required for this intersection.",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Leon Road & Scott Road (#13)",
+        "measure_type": "new_traffic_signal",
+        "description": "Install a traffic signal"
+      },
+      {
+        "location": "Haun Road/Zeiders Road & Scott Road (#1)",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "Haun Road/Zeiders Road & Scott Road (#1)",
+        "measure_type": "signal_timing_optimization"
+      }
+    ],
+    "train_time_s": 432
+  },
+  "CEQ-CA-120005": {
+    "case_id": "CEQ-CA-120005",
+    "fold_idx": 8,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Wilcox Avenue",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "Project site",
+        "measure_type": "tdm_measure"
+      },
+      {
+        "location": "Project site",
+        "measure_type": "other"
+      }
+    ],
+    "train_time_s": 433
+  },
+  "MEPA-MA-16012": {
+    "case_id": "MEPA-MA-16012",
+    "fold_idx": 9,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Parkman Street",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "North Grove Street",
+        "measure_type": "other"
+      },
+      {
+        "location": "Cambridge Street at North Grove Street",
+        "measure_type": "signal_timing_optimization"
+      }
+    ],
+    "train_time_s": 433
+  },
+  "MEPA-MA-16024": {
+    "case_id": "MEPA-MA-16024",
+    "fold_idx": 10,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Grove Street at the western end of the site",
+          "measure_type": "tdm_measure",
+          "description": "Implement a Transportation Demand Management (TDM) program",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "I-95/Grove Street interchange",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "Grove Street and Grove Street extension",
+        "measure_type": "new_traffic_signal"
+      },
+      {
+        "location": "Grove Street at I-95 SB Ramps",
+        "measure_type": "roundabout_installation"
+      },
+      {
+        "location": "three new signalized intersections",
+        "measure_type": "other"
+      }
+    ],
+    "train_time_s": 432
+  },
+  "MEPA-MA-16241": {
+    "case_id": "MEPA-MA-16241",
+    "fold_idx": 11,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "project site",
+        "measure_type": "tdm_measure"
+      },
+      {
+        "location": "project site",
+        "measure_type": "tdm_measure"
+      },
+      {
+        "location": "Route 20",
+        "measure_type": "no_mitigation_required"
+      }
+    ],
+    "train_time_s": 433
+  },
+  "MEPA-MA-16468": {
+    "case_id": "MEPA-MA-16468",
+    "fold_idx": 12,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Potter Street/Third Street intersection",
+        "measure_type": "other"
+      },
+      {
+        "location": "Broadway/Volpe Garage Driveway/Green garage intersection",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "Broadway/Third Street intersection",
+        "measure_type": "add_turn_lane"
+      },
+      {
+        "location": "Fifth Street",
+        "measure_type": "other"
+      },
+      {
+        "location": "Binney Street/Third St. intersection",
+        "measure_type": "signal_timing_optimization"
+      },
+      {
+        "location": "Third Street between Binney St. and Broadway",
+        "measure_type": "pedestrian_improvement"
+      },
+      {
+        "location": "Broadway between Ames Street and Third Street",
+        "measure_type": "other"
+      },
+      {
+        "location": "Fifth Street",
+        "measure_type": "pedestrian_improvement"
+      },
+      {
+        "location": "Potter Street",
+        "measure_type": "pedestrian_improvement"
+      },
+      {
+        "location": "Munroe Street between Third Street and Fifth Street",
+        "measure_type": "other"
+      },
+      {
+        "location": "Potter Street to Kittie Knox Path",
+        "measure_type": "pedestrian_improvement"
+      },
+      {
+        "location": "Broad Canal Way to Kittie Knox Path",
+        "measure_type": "pedestrian_improvement"
+      },
+      {
+        "location": "Fifth Street",
+        "measure_type": "transit_improvement"
+      },
+      {
+        "location": "Leverett Circle",
+        "measure_type": "signal_timing_optimization"
+      }
+    ],
+    "train_time_s": 438
+  },
+  "MEPA-MA-16504": {
+    "case_id": "MEPA-MA-16504",
+    "fold_idx": 13,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "shared site driveway on North Bedford Street (Route 18)",
+          "measure_type": "tdm_measure",
+          "description": "Implement a Transportation Demand Management (TDM) Plan",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "shared site driveway on North Bedford Street (Route 18)",
+        "measure_type": "access_modification"
+      },
+      {
+        "location": "project site",
+        "measure_type": "tdm_measure"
+      }
+    ],
+    "train_time_s": 433
+  },
+  "MEPA-MA-16561": {
+    "case_id": "MEPA-MA-16561",
+    "fold_idx": 14,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Route 138/North Warehouse Driveway",
+          "measure_type": "no_mitigation_required",
+          "description": "No mitigation is required for this intersection.",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "South Warehouse Driveway and Gaming/Simulcast Facility Driveway",
+        "measure_type": "new_traffic_signal"
+      }
+    ],
+    "train_time_s": 434
+  },
+  "MEPA-MA-16608": {
+    "case_id": "MEPA-MA-16608",
+    "fold_idx": 15,
+    "prediction": {
+      "recommendations": []
+    },
+    "gt_recs": [
+      {
+        "location": "Hartford Avenue East",
+        "measure_type": "road_widening"
+      }
+    ],
+    "train_time_s": 434
+  },
+  "SFP-CA-p003": {
+    "case_id": "SFP-CA-p003",
+    "fold_idx": 16,
+    "prediction": {
+      "recommendations": [
+        {
+          "location": "Candlestick Point",
+          "measure_type": "tdm_measure",
+          "description": "Implement a Transportation Demand Management (TDM) Program",
+          "timing": "not_specified",
+          "responsible_party": "not_specified"
+        }
+      ]
+    },
+    "gt_recs": [
+      {
+        "location": "Tunnel/Blanken",
+        "measure_type": "other"
+      },
+      {
+        "location": "Geneva Avenue/US 101 interchange",
+        "measure_type": "other"
+      },
+      {
+        "location": "Amador/Cargo Way intersection",
+        "measure_type": "other"
+      },
+      {
+        "location": "Bayshore/Geneva intersection",
+        "measure_type": "other"
+      },
+      {
+        "location": "Geneva Avenue / US 101 interchange area",
+        "measure_type": "other"
+      },
+      {
+        "location": "Geneva Avenue / US 101 interchange area",
+        "measure_type": "other"
+      },
+      {
+        "location": "Harney Way",
+        "measure_type": "road_widening"
+      },
+      {
+        "location": "not_specified",
+        "measure_type": "tdm_measure"
+      },
+      {
+        "location": "Crisp Road / Palou Avenue / Griffith Street",
+        "measure_type": "other"
+      },
+      {
+        "location": "Innes Avenue / Earl Street",
+        "measure_type": "new_traffic_signal"
+      }
+    ],
+    "train_time_s": 434
+  }
+}

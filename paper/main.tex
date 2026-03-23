@@ -1,0 +1,1212 @@
+%% Transportation Research Part C: Emerging Technologies
+%% Elsevier article template (elsarticle)
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage[T1]{fontenc}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\journal{Artificial Intelligence for Transportation}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Spatial Grounding Failure in LLM-Generated Traffic Impact Analysis Recommendations: A Structured Evaluation Using Public Environmental Review Documents}
+
+\author[1]{[Author]}
+\address[1]{[Institution]}
+\ead{[email]}
+
+%% Abstract ────────────────────────────────────────────────────────────────────
+\begin{abstract}
+No structured evaluation exists for large language models (LLMs) applied to
+Traffic Impact Analysis (TIA) mitigation generation, a high-cost, high-volume
+deliverable in US transportation planning.
+We address this gap with three contributions.
+First, we construct a 33-record benchmark dataset by programmatically harvesting
+transportation study appendices from two public environmental review portals
+(California CEQAnet and Massachusetts MEPA), each record pairing a structured
+project context with held-out ground-truth mitigation measures.
+Second, we define a conditioned generation task that mirrors real practitioner
+workflow: given a project description and the traffic analysis results (failing
+intersections with Level of Service grades), generate the mitigation
+recommendations a licensed engineer would prescribe.
+Third, we evaluate five LLMs under four conditions (zero-shot, few-shot,
+retrieval-augmented generation (RAG), and leave-one-out LoRA fine-tuning)
+using a two-tier metric that separates \emph{intervention type} accuracy from
+\emph{spatial location} accuracy.
+
+The dominant finding is a systematic spatial grounding failure: all models
+predict intervention categories with moderate competence
+($F1_\text{type} = 0.21$--$0.30$) but fail to assign them to the correct
+intersections ($F1_\text{loc} = 0.07$--$0.14$).
+Few-shot prompting closes part of this gap and is the most reliable strategy
+($+$13--29\% over zero-shot for most models).
+LLM-as-judge plausibility scores (4.1--4.7/5) indicate that outputs are
+professionally structured, suggesting a role as \emph{drafting aids} subject
+to engineer review, rather than as autonomous decision-making tools.
+\end{abstract}
+
+\begin{keyword}
+Traffic Impact Analysis \sep Large Language Models \sep Spatial Grounding \sep
+Benchmark Evaluation \sep Transportation Planning \sep Few-Shot Learning \sep
+Environmental Review \sep CEQA \sep Dataset
+\end{keyword}
+
+\end{frontmatter}
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+Traffic Impact Analyses are among the most resource-intensive deliverables in
+the US transportation planning process.
+Required under state and local regulations for developments expected to generate
+significant new vehicle trips, a typical TIA documents existing traffic conditions,
+projects future demand using standardized trip generation rates
+\citep{ITE2021}, evaluates intersection Level of Service (LOS) under build
+conditions, and specifies physical and operational mitigation measures for any
+identified deficiencies \citep{NCHRP2019}.
+Preparation of a single TIA commonly requires 80--200 consultant hours, costing
+\$15{,}000--\$60{,}000 depending on scope \citep[see, e.g.,][]{FHWA2014}.
+With tens of thousands of TIAs filed annually across the United States, the
+cumulative cost to the development and public-review process is substantial.
+
+Scaled language models exhibit emergent competence in structured reasoning
+and generation across multiple domains \citep{brown2020gpt3, wei2022emergent,
+openai2023gpt4, bubeck2023sparks}, including clinical knowledge
+\citep{MedicalLLM2023} and scientific information extraction
+\citep{ScienceLLM2023}.
+Transportation planning documents, with their distinctive combination of
+spatial reasoning, engineering vocabulary, and regulatory constraints,
+remain understudied.
+Crucially, no prior work has asked whether LLMs can perform the specific TIA
+step that consumes the most expert time: given traffic analysis results, what
+physical improvements should be prescribed, and at which intersections?
+
+This paper answers that question with three contributions:
+
+\begin{itemize}
+\item \textbf{A benchmark dataset and conditioned generation task.}
+33 TIA records are programmatically harvested from two public environmental
+review portals (California CEQAnet and Massachusetts MEPA) and paired with
+held-out ground-truth mitigation measures extracted from real consultant reports.
+
+\item \textbf{A two-tier evaluation framework separating intervention type
+from spatial location.}
+The metric independently assesses categorical coverage ($F1_\text{type}$)
+and location-specific precision ($F1_\text{loc}$), exposing failure modes
+that aggregate metrics would mask.
+
+\item \textbf{An empirical finding: systematic spatial grounding failure.}
+Across all five LLMs and four prompting conditions, models correctly
+identify intervention categories but consistently misassign them to
+incorrect intersections, suggesting spatial grounding in structured engineering
+tasks remains an unresolved challenge.
+\end{itemize}
+
+The central finding is a \textbf{systematic spatial grounding failure}:
+LLMs correctly identify intervention categories ($F1_\text{type}$ 0.21--0.30)
+but consistently misassign them to incorrect intersections
+($F1_\text{loc}$ 0.07--0.14).
+This is not a general model error but a structured failure specific to spatial
+reasoning in professional engineering tasks, and it persists across model sizes,
+prompting strategies, and domain adaptation methods.
+LLMs can support TIA drafting as assistants to licensed engineers, but
+location-specific outputs require expert review before adoption.
+
+The remainder of this paper is structured as follows.
+Section~\ref{sec:background} reviews related work on TIA processes,
+transportation document processing, and LLMs in engineering domains.
+Section~\ref{sec:data} describes the dataset construction methodology.
+Section~\ref{sec:method} defines the benchmark tasks and evaluation metrics.
+Section~\ref{sec:results} presents experimental results.
+Section~\ref{sec:discussion} discusses practical implications and limitations.
+Section~\ref{sec:conclusion} concludes with directions for future work.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Background and Related Work}
+\label{sec:background}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{The Traffic Impact Analysis Process}
+
+A Traffic Impact Analysis is a technical study quantifying the effect of a
+proposed land development on the surrounding roadway network.
+The standard methodology, codified by the Institute of Transportation Engineers
+\citep{ITE2021} and adopted in varying forms by state departments of
+transportation and local jurisdictions across the United States, proceeds in
+five stages: (1) defining a study area and selecting study intersections based on
+expected traffic influence; (2) collecting existing traffic counts and
+characterizing baseline Level of Service (LOS) using the Highway Capacity Manual
+\citep{HCM2022}; (3) generating project trip estimates using ITE
+land-use-specific rates; (4) distributing and assigning project trips to the
+network; and (5) re-evaluating LOS under projected build conditions and
+identifying mitigation measures for intersections projected to fail the
+jurisdiction's LOS standard (typically LOS~D or better).
+
+Mitigation measures in a TIA fall into a limited taxonomy: physical capacity
+improvements (turn lanes, road widening, signal installation), operational
+improvements (signal timing optimization), access management (driveway
+consolidation, turn restrictions), and demand management (TDM programs,
+transit subsidies).
+The specificity and defensibility of these recommendations, including naming the
+exact intersection, lane geometry, and storage length, is a core deliverable
+of the professional traffic engineer.
+
+\subsection{Automation in Transportation Document Processing}
+
+Prior work on NLP for transportation has primarily targeted operational data
+sources: classifying traffic incidents, extracting entities from police crash
+reports \citep{zhang2020secondary}, and analysing driver injury narratives.
+Planning-level documents (TIAs, EIRs, corridor studies) have received
+substantially less attention, because they are longer, more heterogeneous
+in structure, and require domain-specific reasoning rather than named
+entity extraction.
+
+Recent work has begun exploring LLMs for transportation planning contexts.
+\citet{yan2025llm} use LLM agents to simulate resident preferences in
+transit policy referenda, and \citet{choi2026climate} apply RAG-based LLMs
+to extract transportation policy items from municipal climate equity plans.
+Neither study addresses the generation or evaluation of intersection-specific
+mitigation measures from traffic analysis inputs.
+This paper addresses that gap.
+
+\subsection{Large Language Models for Technical Documents}
+
+LLMs have shown strong performance on structured generation in several
+professional domains, including clinical knowledge encoding
+\citep{MedicalLLM2023} and structured information extraction from scientific
+literature \citep{ScienceLLM2023}.
+A recurring pattern is that outputs are \emph{categorically} appropriate
+but lack the contextual specificity required for deployment without
+human review.
+
+Transportation planning sharpens this limitation.
+A TIA recommendation is defensible only when it names the exact intersection,
+specifies the physical change, and quantifies its dimensions.
+Recommending signal timing optimization at the wrong intersection is not
+merely unhelpful: it could contribute to unsafe or unworkable designs.
+This specificity requirement motivates our separation of type accuracy
+from location accuracy in evaluation.
+
+\subsection{Retrieval-Augmented Generation}
+
+Retrieval-Augmented Generation \citep{RAG2020, gao2023rag} extends LLM prompting
+by retrieving semantically similar documents from a corpus and providing them
+as in-context examples.
+RAG has shown particular promise for specialized professional domains where
+factual precision matters \citep{RAG2020, gao2023rag}, as examples from
+similar cases can ground the model's outputs in domain conventions.
+
+Few-shot prompting \citep{brown2020gpt3} provides complete input--output
+demonstrations directly in the prompt.
+\citet{min2022rethinking} show that the \emph{format} of demonstrations
+matters more than their factual content, explaining why few-shot can be
+effective even when retrieved examples come from different projects:
+the model learns the expected output structure rather than the specific answers.
+This distinction has implications for our benchmark: few-shot demonstrations
+teach the model ``a recommendation looks like this JSON object with these
+fields,'' while RAG provides relevant text fragments that may or may not
+contain complete examples.
+
+In the context of TIA generation, we hypothesize that few-shot will outperform
+RAG because TIA mitigation language follows a highly formulaic structure that
+can be learned from very few complete examples \citep{zhao2021calibrate}.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Dataset Construction}
+\label{sec:data}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Source Selection}
+
+We identified two publicly accessible repositories of transportation impact
+study documents that expose programmatic interfaces:
+
+\textbf{California CEQA State Clearinghouse (CEQAnet).}
+California's Environmental Quality Act (CEQA) requires that all Draft and
+Final Environmental Impact Reports (DEIRs/FEIRs) for projects exceeding
+defined thresholds be submitted to the State Clearinghouse at
+\url{ceqanet.opr.ca.gov}.
+Since approximately 2015, the portal has accepted electronic document
+submissions as separate PDF attachments indexed by project and submittal type.
+Critically, many projects include standalone Transportation Impact Analysis
+appendices (labeled as ``Appendix K -- Transportation'', ``Traffic Impact
+Study'', etc.) rather than embedding the traffic analysis within the main EIR
+narrative, enabling extraction of self-contained TIA documents.
+
+\textbf{Massachusetts MEPA e-Monitor.}
+Massachusetts's Environmental Policy Act (MEPA) requires environmental
+notifications and impact reports for major development projects, including a
+transportation impact assessment.
+The MEPA e-Monitor at \url{eeaonline.eea.state.ma.us} exposes a REST API
+(identified through browser network traffic inspection) that provides
+programmatic access to project metadata, submission records, and attached
+PDF documents.
+
+Both portals provide complete document provenance (project name, lead agency,
+municipality, submission date), enabling reliable metadata construction for
+each record in the dataset.
+Full dataset documentation following the Datasheets for Datasets framework
+\citep{gebru2021datasheets} is provided in Appendix~\ref{app:datasheet}.
+
+\subsection{Programmatic Document Acquisition}
+
+\subsubsection{CEQAnet Acquisition Pipeline}
+
+The CEQAnet portal renders project pages as server-side HTML, enabling direct
+scraping without browser automation.
+We query the daily filing index at
+\texttt{ceqanet.opr.ca.gov/Search?ReceivedDate=\{YYYY-MM-DD\}} for each
+month-end and mid-month date in the range 2015--2019, focusing on this
+pre-2023 window because California Senate Bill 743 (effective 2023 for most
+jurisdictions) shifted CEQA transportation analysis from Level of Service
+to Vehicle Miles Traveled (VMT) metrics, rendering post-2022 transportation
+chapters methodologically incompatible with our LOS-based evaluation schema.
+
+For each date, we identify rows with document type ``EIR'' and retrieve the
+project page.
+We then extract all PDF attachment records and filter for documents whose
+filename or label contains transportation-specific keywords
+(``Traffic Impact'', ``Transportation Analysis'', ``Level of Service'',
+``Trip Generation'').
+We apply a size filter (1--30 MB) to exclude cover pages and raw data
+appendices, and download the resulting candidate PDFs.
+
+\subsubsection{MEPA API Acquisition Pipeline}
+
+Through reverse engineering of the MEPA e-Monitor's Angular frontend, we
+identified a public AWS API Gateway endpoint at
+\texttt{t7i6mic1h4.execute-api.us-east-1.amazonaws.com}
+that accepts requests authenticated via a static API key embedded in the
+application bundle.
+We enumerate all published Environmental Monitor editions from 2020--2023
+using the \texttt{/api/Publishing/publication} endpoint,
+retrieve project submission lists for each edition via
+\texttt{/api/PublicationHistory}, and download transportation study attachments
+via \texttt{/api/Attachment/\{fileServiceId\}}.
+A session warm-up step (loading the MEPA portal) is required to establish an
+IP-based server session that authorizes file downloads.
+
+\subsection{PDF Parsing and Section Extraction}
+
+Downloaded PDFs are processed using \texttt{pdfplumber} \citep{pdfplumber}.
+We apply a file-size-based page cap (all pages for files $<$5 MB; up to 200
+pages for files 5--15 MB; up to 150 pages for larger files) to manage
+processing time on multi-chapter EIR volumes.
+
+Section boundaries are detected using a two-tier pattern set: standard TIA
+section headers (``Existing Conditions'', ``Trip Generation'',
+``Mitigation Measures'', etc.) and EIR-specific equivalents
+(``IV.D Transportation and Circulation'',
+``Intersection Level of Service Analysis'', etc.).
+Each detected section is assigned one of three roles:
+
+\begin{itemize}
+\item \textbf{Input}: Sections 1--8 of the TIA sequence (project description,
+study area, existing conditions, trip generation, trip distribution,
+traffic assignment, future conditions analysis). These constitute the
+model's input at evaluation time.
+\item \textbf{Ground truth}: The findings and mitigation sections of the
+report. These are held out and used only for evaluation.
+\item \textbf{Other}: Preamble, appendices, and administrative sections
+excluded from both roles.
+\end{itemize}
+
+\subsection{Structured Information Extraction}
+
+Input and ground-truth sections are converted to structured JSON using
+Cloudflare Workers AI (\texttt{@cf/meta/llama-3.3-70b-instruct-fp8-fast})
+via two targeted prompts:
+an \emph{input extraction prompt} that maps project description text to a
+structured schema (project type, location context, trip generation summary,
+study intersection list with LOS grades), and a \emph{ground-truth extraction
+prompt} that extracts issues (deficient intersections with LOS grade,
+V/C ratio, and deficiency type) and recommendations (mitigation measures
+with location, measure type, description, timing, and responsible party).
+
+Records are retained in the final dataset only if:
+(1) both input and ground-truth sections are detected;
+(2) the input text contains at least 8{,}000 characters;
+(3) the ground-truth text contains at least 5{,}000 characters; and
+(4) the extracted ground truth contains at least one recommendation.
+A leakage check verifies that no finding-specific language
+(e.g., ``operates at LOS E'', ``dedicated left-turn lane'')
+appears in the input fields.
+
+\subsection{Dataset Characteristics}
+
+The resulting dataset comprises \textbf{33 records} from \textbf{23
+California} and \textbf{10 Massachusetts} projects spanning
+\textbf{2012--2024}.
+Table~\ref{tab:dataset} summarizes key statistics.
+
+\begin{table}[h]
+\centering
+\caption{Dataset statistics.}
+\label{tab:dataset}
+\begin{tabular}{lr}
+\toprule
+Statistic & Value \\
+\midrule
+Total records & 33 \\
+Records with both issues and recommendations & 17 \\
+California (CEQAnet) & 23 \\
+Massachusetts (MEPA) & 10 \\
+Year range & 2012--2024 \\
+Unique project types & 8 \\
+Total ground-truth issues & 91 \\
+Total ground-truth recommendations & 189 \\
+Mean recommendations per case & 5.73 \\
+Mean input text length (chars) & 68,198 \\
+Mean GT text length (chars) & 67,837 \\
+Mean chunks per case & 86.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Project types include mixed-use development ($39\%$), industrial/warehouse
+($21\%$), residential multifamily ($6\%$), commercial/office
+($12\%$), and institutional uses ($9\%$).
+The dataset covers 16 California cities and municipalities across
+10 counties, plus 8 Massachusetts municipalities.
+
+Each record in the final dataset is stored as a JSON object with:
+(1) an \texttt{input} field containing project type, location context,
+description, and known conditions (study intersections with baseline LOS);
+(2) a \texttt{ground\_truth} field with structured lists of
+\texttt{issues[]} and \texttt{recommendations[]};
+(3) a \texttt{metadata} field with source URL, agency, year, and an
+\texttt{exclude\_from\_retrieval} list enabling leave-one-out evaluation.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Benchmark Design and Evaluation}
+\label{sec:method}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Task Definition}
+
+We define a single primary task, \emph{conditioned recommendation generation},
+evaluated under four experimental conditions.
+
+\textbf{Task: Conditioned Mitigation Generation.}
+Given (1) the structured project input (project type, location context,
+description, trip generation summary, existing intersection LOS) and (2) the
+traffic analysis results (a structured list of failing intersections with
+LOS grade, V/C ratio, and deficiency type), generate the mitigation
+recommendations a licensed traffic engineer would prescribe.
+
+This task design mirrors actual TIA practice: the quantitative LOS analysis
+is completed by software (Synchro, HCM); the engineer then writes the
+mitigation section. We evaluate whether LLMs can perform the latter step
+when given the former's output.
+Evaluated on the $n = 17$ cases that have both non-empty issues and
+recommendations in the ground truth.
+
+\textbf{Condition 1 (Zero-shot):} Project input + failing intersections only.
+The model must determine appropriate fixes with no examples.
+
+\textbf{Condition 2 (Few-shot):} Same input plus 2--3 complete demonstrations
+selected from the most similar other cases (by project type and state),
+formatted as complete (input, analysis, recommendations) triplets.
+Unlike RAG, few-shot provides fully-worked examples rather than retrieved fragments.
+
+\textbf{Condition 3 (RAG):} Same input plus the top-$k = 8$ text chunks
+retrieved by cosine similarity over BGE-M3 embeddings \citep{BGEM3},
+with leave-one-out exclusion of the query case.
+
+\textbf{Condition 4 (LoRA fine-tuning):} Leave-one-out fine-tuning of
+Mistral-7B-Instruct-v0.2 \citep{jiang2023mistral} using rank-8 LoRA
+\citep{hu2022lora} with 4-bit NF4 quantization \citep{dettmers2023qlora}.
+Each of the 17 LOO folds trains on 16 examples and evaluates on the
+held-out case (full hyperparameters in Appendix~\ref{app:compute}).
+This condition tests whether weight-based adaptation outperforms
+in-context learning at this dataset scale.
+
+\subsection{Models Evaluated}
+
+We evaluate five LLMs served via Cloudflare Workers AI, one fine-tuned
+adapter, and a frequency baseline:
+
+\begin{itemize}
+\item \textbf{Llama-3.3-70B} \citep{touvron2023llama2} (\texttt{@cf/meta/llama-3.3-70b-instruct-fp8-fast}), 70B instruction-tuned
+\item \textbf{GPT-OSS-120B} \citep{openai2023gpt4} (\texttt{@cf/openai/gpt-oss-120b}), 120B
+\item \textbf{Nemotron-3-120B} (\texttt{@cf/nvidia/nemotron-3-120b-a12b}), 120B
+\item \textbf{Qwen3-30B} (\texttt{@cf/qwen/qwen3-30b-a3b-fp8}), 30B extended-thinking model
+\item \textbf{Gemma-3-12B} \citep{team2024gemma} (\texttt{@cf/google/gemma-3-12b-it}), 12B
+\item \textbf{Mistral-7B LoRA} \citep{jiang2023mistral} (\texttt{@cf/mistral/mistral-7b-instruct-v0.2-lora}), fine-tuned via LOO LoRA \citep{hu2022lora} using 4-bit NF4 quantization \citep{dettmers2023qlora} (Condition 4 only)
+\item \textbf{Frequency Baseline}: predicts the most common measure types
+observed in LOO training records, calibrated by project type.
+Does not use the provided failing intersections.
+\end{itemize}
+
+All LLMs for Conditions 1--3 share a system instruction establishing the
+transportation engineering context and requesting JSON-only output;
+temperature is set to 0.1. Qwen3-30B uses 4,096 output tokens to
+accommodate its extended chain-of-thought reasoning prior to the JSON response.
+
+\subsection{Evaluation Metrics}
+
+\subsubsection{Recommendation Evaluation}
+
+We evaluate recommendations using a \emph{two-tier matching} approach
+that mirrors professional TIA review practice:
+
+\textbf{Location-aware F1 (primary metric, $F1_\text{loc}$).}
+A predicted recommendation is considered a true positive if:
+(a) the measure type exactly matches a ground-truth recommendation; \emph{and}
+(b) the predicted location is sufficiently similar to the GT location
+(Jaccard similarity $\geq 0.5$ on meaningful word tokens after stopword removal).
+When either the predicted or ground-truth location is unspecified (e.g.,
+project-wide TDM programs), only measure-type agreement is required.
+Precision, recall, and F1 are computed using greedy one-to-one matching.
+
+\textbf{Type-only F1 (secondary metric, $F1_\text{type}$).}
+The multi-set intersection of predicted and ground-truth measure types,
+regardless of location. This provides a ceiling on $F1_\text{loc}$ and
+measures categorical coverage.
+
+The gap between $F1_\text{type}$ and $F1_\text{loc}$ quantifies location
+specificity failure: models know \emph{what} to recommend but not
+\emph{where}.
+
+\subsubsection{LLM-as-Judge Evaluation}
+
+Automatic metrics may not fully capture whether outputs are professionally
+usable. We supplement them with an LLM-as-judge evaluation
+\citep{LLMJudge2023}, a methodology increasingly used to assess open-ended
+generation quality \citep{liang2022helm, chang2024survey}: for each
+prediction, we prompt
+Llama-3.3-70B (acting as a transportation engineering reviewer) to score
+the output on three 1--5 scales:
+\begin{itemize}
+\item \textbf{Domain plausibility}: Would a licensed traffic engineer write
+recommendations like these?
+\item \textbf{Location specificity}: Are the named locations plausible given
+the project context?
+\item \textbf{GT alignment}: Do the predicted measure types match what the
+ground truth recommends?
+\end{itemize}
+An overall score is also requested. This provides a practitioner-oriented
+complement to the automatic metrics.
+
+\subsection{Leave-One-Out Evaluation}
+
+All four conditions use leave-one-out (LOO) evaluation: for any given case,
+the retrieval corpus (Conditions 2--3), the frequency baseline training set,
+and the fine-tuning training set (Condition 4) all exclude that case.
+This ensures no data leakage while using all available data for both
+training and evaluation.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+Results are organised around the paper's central thesis: that LLMs show
+categorical competence but spatial grounding failure.
+We first characterise the ground-truth distribution (Section~\ref{sec:results}),
+which is required to interpret the primary metric, then present the
+four-condition comparison, the type-vs-location gap analysis,
+and qualitative error examples that concretise the failure mode.
+
+\subsection{Ground-Truth Type Distribution}
+
+We first characterise the ground-truth recommendation distribution,
+which directly affects evaluation interpretation.
+Of the 71 ground-truth recommendations across the 17 Task C cases,
+36 (51\%) are intersection-specific (a named location with two or more
+meaningful road-name tokens) and 35 (49\%) are project-wide
+(``Future developments'', ``Project site'', ``not specified'', or similar).
+Intersection-specific recommendations cluster around physical capacity
+improvements (\texttt{add\_turn\_lane}: 8/9 specific;
+\texttt{new\_traffic\_signal}: 5/5 specific;
+\texttt{signal\_timing\_optimization}: 4/5 specific),
+while project-wide recommendations dominate TDM programs
+(\texttt{tdm\_measure}: 5/5 project-wide),
+access requirements (\texttt{access\_modification}: 8/12 project-wide),
+and road obligations (\texttt{road\_widening}: 7/9 project-wide).
+
+This distribution explains the \emph{specificity paradox} discussed in
+Section~\ref{sec:discussion}: the frequency baseline, which always
+predicts unspecified locations, matches project-wide GT items via
+the Tier~2 (type-only) fallback and scores $F1_\text{loc} = 0.249$,
+numerically higher than all LLMs.
+This is a metric artefact, not a genuine performance advantage, as
+confirmed by LLM-as-judge scores (Frequency Baseline: 2.00/5 vs.\ LLMs: 3.35--3.47/5).
+
+\subsection{Four-Condition Comparison}
+
+Table~\ref{tab:main_results} presents $F1_\text{loc}$ results for all
+models across all four conditions ($n = 17$ cases, conditioned task).
+
+\begin{table}[h]
+\centering
+\caption{Conditioned recommendation generation: $F1_\text{loc}$ by model and condition ($n = 17$).
+Bolded values indicate the best condition per model.
+Frequency baseline cannot perform few-shot or fine-tuning; RAG result is identical to zero-shot.}
+\label{tab:main_results}
+\begin{tabular}{lrrrr}
+\toprule
+Model & Zero-shot & Few-shot & RAG & Fine-tuned (LOO) \\
+\midrule
+Qwen3-30B          & 0.109 & \textbf{0.123} & 0.086 & --- \\
+Llama-3.3-70B      & 0.096 & \textbf{0.124} & 0.070 & --- \\
+Gemma-3-12B        & 0.097 & 0.118 & \textbf{0.141} & --- \\
+GPT-OSS-120B       & \textbf{0.090} & 0.084 & 0.048 & --- \\
+Nemotron-120B      & 0.070 & 0.053 & \textbf{0.072} & --- \\
+Mistral-7B LoRA    & --- & --- & --- & 0.050 \\
+Frequency Baseline & 0.249$^\dagger$ & --- & 0.249$^\dagger$ & --- \\
+\midrule
+\multicolumn{5}{l}{$^\dagger$Metric artefact: matches project-wide GT via Tier~2 fallback; judge score 2.00/5.} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Few-shot is the most consistent improvement.}
+Few-shot prompting improves $F1_\text{loc}$ for 3 of 5 models
+(Llama: $+$29\%, Qwen3: $+$13\%, Gemma: $+$22\%)
+and ties for one (Gemma's best is RAG but few-shot is close).
+Only Nemotron and GPT-OSS decline under few-shot.
+The improvement is consistent across project types and geographic regions.
+
+\textbf{RAG is heterogeneous.}
+RAG provides Gemma's best result (0.141, $+$45\% over zero-shot)
+and modestly helps Nemotron, but degrades performance for Llama ($-$27\%),
+GPT-OSS ($-$47\%), and Qwen3 ($-$21\%).
+We attribute this to model-dependent retrieval behaviour: Gemma appears
+to use retrieved examples as structural templates, while larger models
+may over-anchor to retrieved intersection names from unrelated projects.
+
+\textbf{LoRA fine-tuning underperforms zero-shot.}
+The LOO-fine-tuned Mistral-7B achieves $F1_\text{loc} = 0.050$, below
+every zero-shot LLM (range 0.070--0.109).
+Table~\ref{tab:finetuned_outputs} summarises the distribution of
+fine-tuned outputs: 7/17 folds produced empty predictions;
+6/17 predicted \texttt{no\_mitigation\_required} regardless of the
+failing intersections provided; only 4/17 predicted \texttt{tdm\_measure}.
+The model collapsed to two safe defaults, never predicting
+\texttt{add\_turn\_lane}, \texttt{new\_traffic\_signal}, or
+\texttt{signal\_timing\_optimization}, which together constitute
+19 of 71 GT recommendations (27\%).
+This failure mode is consistent with catastrophic overfitting on 16
+training examples: the model memorised surface response patterns at
+the expense of its zero-shot generalization ability.
+
+\begin{table}[h]
+\centering
+\caption{LOO fine-tuned Mistral-7B prediction distribution vs.\ GT ($n=17$ folds).}
+\label{tab:finetuned_outputs}
+\begin{tabular}{lrr}
+\toprule
+Output type & Fine-tuned count & GT count \\
+\midrule
+Empty prediction                & 7  & 0 \\
+\texttt{no\_mitigation\_required} & 6  & 1 \\
+\texttt{tdm\_measure}             & 4  & 5 \\
+\texttt{add\_turn\_lane}          & 0  & 9 \\
+\texttt{signal\_timing\_optimization} & 0 & 5 \\
+\texttt{new\_traffic\_signal}     & 0  & 5 \\
+Other types                     & 0  & 46 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Type-Only vs.\ Location-Aware F1}
+
+Table~\ref{tab:type_vs_loc} presents both metrics for the zero-shot condition,
+illustrating the categorical/spatial gap across models.
+
+\begin{table}[h]
+\centering
+\caption{Zero-shot condition: location-aware vs.\ type-only F1 ($n=17$).
+The gap quantifies spatial grounding failure.}
+\label{tab:type_vs_loc}
+\begin{tabular}{lrrr}
+\toprule
+Model & $F1_\text{loc}$ & $F1_\text{type}$ & Gap ($F1_\text{type} - F1_\text{loc}$) \\
+\midrule
+Llama-3.3-70B  & 0.096 & 0.298 & 0.202 \\
+Qwen3-30B      & 0.109 & 0.259 & 0.150 \\
+GPT-OSS-120B   & 0.090 & 0.242 & 0.152 \\
+Nemotron-120B  & 0.070 & 0.209 & 0.139 \\
+Gemma-3-12B    & 0.097 & 0.222 & 0.125 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The gap is substantial and consistent across all models (0.13--0.20 F1 points).
+Models correctly anticipate what type of improvement is needed but cannot
+reliably assign it to the correct intersection.
+This is the central finding of the paper: \textbf{LLMs exhibit semantic
+competence but spatial grounding failure.}
+
+\subsection{Qualitative Error Analysis}
+
+Table~\ref{tab:qualitative} illustrates the three recurring failure modes
+across three representative cases.
+
+\begin{table*}[ht]
+\centering
+\caption{Representative prediction failures (zero-shot, Llama-3.3-70B).
+Each row shows a failing intersection given as input, the ground-truth
+mitigation, and the model's prediction.}
+\label{tab:qualitative}
+\begin{tabular}{p{3.8cm}p{4.2cm}p{4.2cm}p{2.4cm}}
+\toprule
+Case / Input intersection & Ground truth & Model prediction & Failure type \\
+\midrule
+\textbf{CEQ-CA-010282} (mixed-use, Santa Clara)
+Lafayette St \& El Camino Real (LOS D) &
+``Driveways of future developments should meet minimum width requirements''
+(\texttt{access\_modification}, project-wide) &
+``Optimize signal timing at Lafayette St \& El Camino Real''
+(\texttt{signal\_timing\_optimization}, same location) &
+Wrong type at correct location \\
+\addlinespace
+\textbf{CEQ-CA-080060} (industrial, Perris)
+Harvill Av. \& Perry St. (LOS F) &
+``Install a stop control and 100-ft WB left turn lane at Driveway 1''
+(\texttt{access\_modification}, Driveway 1) &
+``Add dedicated EBL lane on Harvill Av. at Perry St.''
+(\texttt{add\_turn\_lane}, correct main intersection) &
+Correct type, wrong sub-location \\
+\addlinespace
+\textbf{MEPA-MA-16468} (TOD, Cambridge)
+22 failing intersections incl.\ Binney St./Third St. (LOS F) &
+``Construct sidewalk-level bicycle lanes on Potter Street''
+(\texttt{pedestrian\_improvement}, non-failing street) &
+``Install traffic signal at Binney St./Third St.''
+(\texttt{new\_traffic\_signal}, failing intersection) &
+Correct location, project type mismatch \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Three patterns emerge.
+\textbf{Wrong type at correct location} (Row 1): the model correctly names
+the failing intersection but prescribes a standard engineering fix
+(signal retiming) when the GT calls for a planning-level design obligation
+(driveway standards). The model lacks context about the EIR's planning scope.
+\textbf{Correct type, wrong sub-location} (Row 2): the model identifies
+the right class of improvement (turn lane) at the right arterial but
+targets the signalized intersection rather than the site driveway. Sub-location
+granularity within a corridor is systematically lost.
+\textbf{Project type mismatch} (Row 3): for a large transit-oriented
+development, the GT prescribes multimodal corridor improvements;
+the model defaults to intersection engineering. This reflects a bias
+toward the most common training patterns (signal and turn-lane fixes)
+regardless of project type.
+
+\subsection{LLM-as-Judge Evaluation}
+
+Table~\ref{tab:judge} presents LLM-as-judge scores for the zero-shot condition,
+which reveal that professional plausibility is substantially higher than
+automatic metrics suggest.
+
+\begin{table}[h]
+\centering
+\caption{LLM-as-judge evaluation (zero-shot condition, 1--5 scale, $n=17$).
+DP: domain plausibility. LS: location specificity. GT-A: GT alignment.}
+\label{tab:judge}
+\begin{tabular}{lrrrr}
+\toprule
+Model & DP & LS & GT-A & Overall \\
+\midrule
+Nemotron-120B      & 4.70 & 4.24 & 2.85 & 3.64 \\
+Gemma-3-12B        & 4.47 & 3.76 & 2.70 & 3.47 \\
+Qwen3-30B          & 4.18 & 3.76 & 2.21 & 3.47 \\
+GPT-OSS-120B       & 4.53 & 3.59 & 2.45 & 3.41 \\
+Llama-3.3-70B      & 4.06 & 3.59 & 2.27 & 3.41 \\
+Frequency Baseline & 2.85 & 1.00 & 1.76 & 1.88 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Domain plausibility scores (4.06--4.70) are high across all LLMs,
+indicating that outputs use correct professional vocabulary and formatting.
+Location specificity (3.59--4.24) is consistently the weakest dimension,
+corroborating the $F1_\text{loc}$ results.
+Crucially, the judge ranks LLMs (3.41--3.64) far above the frequency
+baseline (1.88), confirming that the baseline's numerical advantage
+in $F1_\text{loc}$ does not reflect practitioner utility.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Primary Findings}
+
+Four findings emerge consistently across conditions and evaluation methods.
+
+\textbf{Finding 1: Semantic competence, spatial grounding failure.}
+The gap between $F1_\text{type}$ ($0.21$--$0.30$) and $F1_\text{loc}$
+($0.07$--$0.14$) is the central result of this study.
+Models correctly identify what category of mitigation is appropriate for a
+given project type: they know that a failing signalized intersection near
+a warehouse development likely needs a turn lane, and that a mixed-use
+development in a transit corridor likely needs a TDM program.
+What they cannot do is assign those interventions to the correct specific
+intersection.
+This is a \emph{spatial} failure, not a \emph{semantic} one.
+LLMs retain strong categorical knowledge but cannot reliably anchor it to
+specific physical locations, consistent with documented limitations in
+geographic and spatial reasoning \citep{bubeck2023sparks, openai2023gpt4}.
+Importantly, this failure is \emph{structured}: it manifests as three
+reproducible error modes (Table~\ref{tab:qualitative}) rather than random
+noise, suggesting spatial grounding in professional engineering tasks is a
+distinct, unresolved challenge for current LLMs.
+Outputs are mislocated, not nonsensical.
+
+\textbf{Finding 2: Few-shot prompting is the most sample-efficient adaptation strategy.}
+Providing 2--3 complete demonstrations of the task consistently improves
+performance for most models (3 of 5, gains of $+$13\%--$+$29\%),
+outperforming both RAG and LoRA fine-tuning.
+The explanation is structural: few-shot demonstrations show the model
+exactly what a completed mitigation section looks like for a comparable
+project, teaching format and vocabulary without the instability of
+weight updates on tiny datasets.
+
+\textbf{Finding 3: LoRA fine-tuning with 16 examples degrades performance.}
+The LOO-fine-tuned Mistral-7B \citep{jiang2023mistral} using QLoRA
+\citep{dettmers2023qlora} achieves $F1_\text{loc} = 0.050$, below
+every zero-shot LLM and below its own estimated zero-shot baseline.
+The model collapsed to two outputs: empty predictions (7/17 folds) and
+\texttt{no\_mitigation\_required} (6/17 folds).
+This behaviour reflects a documented failure mode of fine-tuning on very
+small datasets \citep{zhao2021calibrate}: the model memorises surface-level
+patterns from the instruction/response format while losing the generalisation
+ability established during pretraining, sometimes called ``catastrophic
+forgetting'' in the continual learning literature.
+The finding that in-context few-shot learning \citep{brown2020gpt3} with
+2--3 examples outperforms weight-based adaptation with 16 examples adds
+to a growing body of evidence that the crossover point between prompting
+and fine-tuning depends strongly on dataset scale and domain specificity
+\citep{min2022rethinking}.
+For this task, the threshold is somewhere above 16 examples; future work
+with a larger dataset should establish it more precisely.
+
+\textbf{Finding 4: The specificity paradox and its resolution.}
+The frequency baseline achieves $F1_\text{loc} = 0.249$, numerically
+higher than all LLMs, yet the judge rates it 1.88/5 vs.\ 3.41--3.64
+for LLMs.
+This paradox arises because 49\% of GT recommendations are project-wide
+(no intersection named), which our Tier~2 fallback matches on type alone.
+The baseline, which never names locations, exploits this fallback
+disproportionately.
+LLMs that attempt intersection-specific recommendations are evaluated
+under the stricter Tier~1 criterion, penalising the more useful behaviour.
+This finding has implications for evaluation design in spatial AI
+systems more broadly: metrics requiring exact location agreement
+may penalise specificity over abstention.
+
+\subsection{Practical Implications for Transportation Practice}
+
+The results support a specific, bounded role for LLMs in TIA practice:
+\textbf{drafting support, not decision support.}
+LLMs can assist engineers in generating initial mitigation language by predicting the category of improvement needed (signal timing, turn lane,
+TDM program) with reasonable accuracy.
+However, the spatial grounding failure documented here means that
+location-specific recommendations require mandatory engineer review before
+adoption.
+Current outputs should not be used for unreviewed insertion into final TIA reports or autonomous decision-making.
+
+The most defensible near-term application is \emph{consistency checking}:
+flagging TIA reports that omit commonly required mitigation categories for
+comparable project types, for review by agency staff.
+This exploits LLM categorical competence while bypassing the location
+specificity required for engineering precision.
+
+\subsection{Limitations}
+
+This study is a \emph{pilot benchmark} intended to establish methodology and
+baselines. Four limitations should be noted explicitly.
+
+\textbf{Small dataset (33 records, 17 Task C cases).}
+Statistical variance is high at this scale.
+Per-model F1 differences of $<0.02$ should not be interpreted as meaningful.
+The primary value of the current results is directional, not definitive.
+Expanding to 200+ records is tractable with the provided pipeline and is
+the most important next step.
+
+\textbf{LLM-extracted ground truth.}
+Recommendations were extracted from source PDFs using Cloudflare Workers AI,
+not validated by licensed traffic engineers.
+Extraction errors inflate false-negative rates; the true model performance
+may be somewhat higher than reported.
+Future work should include expert spot-checking of at least 15--20 records.
+
+\textbf{Geographic scope (California and Massachusetts only).}
+Both states have unusually comprehensive public environmental review
+requirements; their TIA structure and vocabulary may differ from states
+without CEQA or MEPA equivalents.
+Generalizability to the broader US practitioner landscape requires replication
+across additional states.
+
+\textbf{Post-2022 methodology shift.}
+California's SB 743 shifted CEQA analysis from LOS to Vehicle Miles Traveled
+(VMT). This benchmark covers only LOS-based practice (pre-2023 California,
+all Massachusetts records), which remains current in most US jurisdictions.
+VMT-based mitigation generation is a distinct and open research problem.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+This paper presents the first structured evaluation of LLMs on conditioned
+TIA mitigation generation.
+The core finding is clear: \textbf{LLMs exhibit semantic competence but
+spatial grounding failure.}
+They predict intervention categories at a reasonable rate
+($F1_\text{type}$ 0.21--0.30) but consistently misassign those interventions
+to incorrect intersections ($F1_\text{loc}$ 0.07--0.14).
+This gap persists across model sizes, architectures, and prompting strategies.
+Qualitative analysis identifies three failure modes: wrong type at correct
+location, correct type at wrong sub-location, and project-type mismatch
+defaulting to generic engineering fixes.
+
+Few-shot prompting with 2--3 complete demonstrations is the most reliable
+strategy, providing consistent gains for most models.
+LoRA fine-tuning with 16 examples degrades performance, establishing that
+the current dataset is below the threshold needed for effective weight-based
+adaptation.
+LLMs can support TIA drafting as assistants to licensed engineers, but the
+spatial grounding failure documented here means location-specific outputs
+require mandatory expert review before use.
+
+The most important direction for future work is dataset expansion.
+The pipeline released alongside this paper can harvest hundreds more records
+from CEQAnet and MEPA, and extending to VMT-based analysis is an open problem.
+Scaling the dataset will establish whether spatial grounding failure is a
+fundamental limitation of current LLMs on this task, or a phenomenon that
+fine-tuning with sufficient domain examples can overcome.
+
+The dataset construction pipeline and all benchmark scripts are available
+at \url{https://github.com/[author]/tia-llm-benchmark}.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section*{CRediT Author Statement}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\textbf{[Author]}: Conceptualization, Methodology, Software, Data Curation,
+Formal Analysis, Writing -- Original Draft, Writing -- Review \& Editing.
+
+\section*{Declaration of Competing Interests}
+
+The author declares no competing interests.
+
+\section*{Data Availability}
+
+The dataset, pipeline code, and benchmark scripts are publicly available at
+\url{https://github.com/[author]/tia-llm-benchmark}.
+Source documents are publicly available from the California Governor's Office
+of Planning and Research (\url{ceqanet.opr.ca.gov}) and the Massachusetts
+Executive Office of Energy and Environmental Affairs
+(\url{eeaonline.eea.state.ma.us}).
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\appendix
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Compute Resources and Reproducibility}
+\label{app:compute}
+
+\subsection{Hardware Environment}
+
+All inference experiments (Conditions 1--3) were run via the
+Cloudflare Workers AI API, which served models on shared GPU infrastructure.
+No local GPU was required for inference.
+
+LoRA fine-tuning (Condition 4) was conducted on a JupyterHub instance with
+an NVIDIA A100 MIG \texttt{2g.20gb} partition (20\,GB GPU memory,
+32\,CPU cores, 64\,GB RAM).
+Models were loaded in 4-bit NF4 quantization using QLoRA
+\citep{dettmers2023qlora}, reducing peak GPU memory to approximately 8\,GB
+during forward passes and 14\,GB during training.
+
+\subsection{Training Details}
+
+\begin{table}[h]
+\centering
+\caption{LoRA fine-tuning hyperparameters.}
+\label{tab:ft_config}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Base model              & mistralai/Mistral-7B-Instruct-v0.2 \\
+Quantization            & 4-bit NF4 (QLoRA) \\
+LoRA rank ($r$)         & 8 \\
+LoRA alpha ($\alpha$)   & 16 \\
+Target modules          & \texttt{q\_proj}, \texttt{v\_proj} \\
+Training epochs         & 10 \\
+Batch size              & 1 (gradient accumulation steps: 4) \\
+Learning rate           & $2 \times 10^{-4}$ \\
+LR scheduler            & Cosine \\
+Warmup steps            & 5 \\
+Precision               & bfloat16 \\
+Optimizer               & paged\_adamw\_8bit \\
+Max sequence length     & 2048 tokens \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Compute Budget}
+
+Table~\ref{tab:compute} summarises total compute usage across all experiments.
+
+\begin{table}[h]
+\centering
+\caption{Total compute expenditure across all experiments.}
+\label{tab:compute}
+\begin{tabular}{lrrr}
+\toprule
+Experiment & Units & Time per unit & Total \\
+\midrule
+\multicolumn{4}{l}{\textit{Fine-tuning (local GPU)}} \\
+LOO folds (17 total)     & 17 folds & $\approx$\,480\,s & $\approx$\,2.3\,h \\
+\midrule
+\multicolumn{4}{l}{\textit{Inference (Cloudflare Workers AI API)}} \\
+Zero-shot (5 models × 17 cases)  & 85 calls  & 10--60\,s & $\approx$\,25\,min \\
+Few-shot  (5 models × 17 cases)  & 85 calls  & 15--90\,s & $\approx$\,40\,min \\
+RAG       (5 models × 17 cases)  & 85 calls  & 10--60\,s & $\approx$\,25\,min \\
+LOO fine-tuned (17 cases)         & 17 calls  & 20--60\,s & $\approx$\,10\,min \\
+LLM-as-judge (6 × 17)            & 102 calls & 3--5\,s   & $\approx$\,8\,min \\
+\midrule
+\multicolumn{4}{l}{\textit{Embedding (BGE-M3)}} \\
+Chunk embeddings (2,838 chunks)  & 142 batches & $<$1\,s  & $\approx$\,3\,min \\
+Query embeddings (RAG, 17 cases) & 17 calls    & $<$1\,s  & $<$1\,min \\
+\midrule
+\textbf{Total wall-clock time}   &  &  & $\approx$\,3.5\,h \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cloudflare Workers AI was used for all inference and embedding calls during
+the open beta period, during which the service was free of charge.
+The GPU instance for fine-tuning was provided by institutional research
+computing infrastructure.
+The dataset construction pipeline (scraping, parsing, extraction) required
+an additional $\approx$4--6\,hours of CPU time, primarily for PDF parsing
+with \texttt{pdfplumber} and structured extraction via the CF Workers AI API
+across all 33 records.
+
+\subsection{Reproducibility}
+
+All experiments are fully reproducible from the released code and dataset.
+Key version information:
+\begin{itemize}
+\item \texttt{transformers} 4.40+,
+      \texttt{peft} 0.10+,
+      \texttt{bitsandbytes} 0.43+
+\item \texttt{pdfplumber} 0.11
+\item \texttt{requests} 2.32
+\item \texttt{beautifulsoup4} 4.14
+\item Cloudflare Workers AI API (\texttt{BGE-M3},
+      \texttt{llama-3.3-70b-instruct-fp8-fast},
+      \texttt{mistral-7b-instruct-v0.2-lora})
+\end{itemize}
+Random seeds are fixed (seed 42) for all sampling operations.
+Fine-tuning results may vary by $\pm$0.01 F1 across hardware due to
+non-deterministic bfloat16 accumulation.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Dataset Card}
+\label{app:datasheet}
+
+Following \citet{gebru2021datasheets}, we provide a structured summary of the
+dataset.
+
+\textbf{Motivation.}
+The dataset was created to enable benchmarking of LLMs on transportation
+impact analysis mitigation recommendation generation, a novel application
+domain not previously studied in NLP or AI.
+
+\textbf{Composition.}
+33 records from California (23) and Massachusetts (10), spanning 2012--2024.
+Each record contains a structured project input (project type, location,
+description, existing LOS conditions) and ground-truth mitigation measures
+extracted from real EIR transportation chapters.
+17 of 33 records additionally contain structured issues (failing intersections
+with LOS grades), enabling the conditioned generation task.
+
+\textbf{Collection process.}
+Documents were collected programmatically from two public portals:
+CEQAnet (server-rendered HTML, scraped by date) and Massachusetts MEPA
+(REST API, reverse-engineered from browser network traffic).
+Ground truth was extracted using Cloudflare Workers AI
+(\texttt{@cf/meta/llama-3.3-70b-instruct-fp8-fast}) via structured prompts.
+
+\textbf{Preprocessing.}
+PDF text was extracted using \texttt{pdfplumber}.
+Section boundaries were detected via regular expression patterns for both
+standard TIA headers and California EIR-specific variants.
+A leakage check verified that no ground-truth language appeared in input fields.
+
+\textbf{Uses.}
+The dataset is intended for benchmarking LLMs on domain-specific structured
+generation tasks in transportation planning.
+It should not be used to evaluate models for deployment in actual TIA
+preparation without additional validation by licensed traffic engineers.
+
+\textbf{Distribution.}
+The dataset construction pipeline and benchmark code are available at
+\url{https://github.com/[author]/tia-llm-benchmark}.
+Source documents are publicly available from CEQAnet and MEPA under
+California and Massachusetts public records law respectively.
+
+\textbf{Maintenance.}
+The dataset reflects LOS-based analysis methodology (pre-2023 California,
+all Massachusetts records).
+It does not cover VMT-based analysis required under California SB~743.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Extended Qualitative Error Analysis}
+\label{app:qualitative}
+
+This appendix provides extended prediction examples for the zero-shot condition
+(Llama-3.3-70B), illustrating the three failure modes identified in
+Section~\ref{sec:results}.
+For each case the table shows the failing intersection provided as input
+(with LOS grade), the ground-truth recommendation from the source document,
+the model prediction, and the failure classification.
+Bold text highlights the key mismatch.
+
+\subsection*{Failure Mode 1: Correct Location, Wrong Intervention Type}
+
+The model names the right intersection but prescribes a generic engineering
+fix rather than the planning-level obligation stated in the ground truth.
+This is common for planning-scope documents (EIRs) where the mitigation
+is a design standard obligation rather than a specific physical improvement.
+
+\begin{table}[h]
+\centering
+\caption{Failure Mode 1: correct location, wrong type (zero-shot, Llama-3.3-70B).}
+\begin{tabular}{p{3.0cm}p{4.2cm}p{4.2cm}}
+\toprule
+Input intersection & Ground truth & Prediction \\
+\midrule
+Lafayette St \& El Camino Real (LOS D, PM peak) &
+\texttt{access\_modification}: ``Driveways of future developments shall meet minimum width requirements per City Code'' &
+\texttt{signal\_timing\_optimization}: ``Optimize signal timing to extend green time on El Camino Real northbound'' \\
+\addlinespace
+Holly Oak Drive site access (LOS E, AM peak) &
+\texttt{access\_modification}: ``Restrict outbound left turns to right-turn only via a raised median nose'' &
+\texttt{new\_traffic\_signal}: ``Install a traffic signal at Holly Oak Drive to manage increased project movements'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Failure Mode 2: Correct Type, Wrong Sub-Location}
+
+The model identifies the right category of improvement at the right arterial
+but targets the signalized main-line intersection rather than the correct
+sub-location (a site driveway, a ramp terminal, or a secondary intersection).
+This sub-location error is sufficient to score as a false positive under
+both Tier-1 and Tier-2 matching when the specific location token does not overlap.
+
+\begin{table}[h]
+\centering
+\caption{Failure Mode 2: correct type, wrong sub-location (zero-shot, Llama-3.3-70B).}
+\begin{tabular}{p{3.0cm}p{4.2cm}p{4.2cm}}
+\toprule
+Input intersection & Ground truth & Prediction \\
+\midrule
+Harvill Av. \& Perry St. (LOS F, PM peak) &
+\texttt{access\_modification}: ``Install stop control and 100-ft WB left-turn lane at \textbf{Driveway 1}'' &
+\texttt{add\_turn\_lane}: ``Add dedicated \textbf{northbound} left-turn lane on Harvill Avenue at Perry Street'' \\
+\addlinespace
+I-215 NB Ramps \& Ramona Exwy. (LOS E, PM peak) &
+\texttt{add\_turn\_lane}: ``Add second EBL lane and third EB/WB through lane at \textbf{I-215 SB Ramps}'' &
+\texttt{add\_turn\_lane}: ``Add a westbound left-turn lane at \textbf{I-215 NB Ramps and Ramona Expressway}'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Failure Mode 3: Project-Type Mismatch}
+
+For large transit-oriented or institutional developments, ground-truth
+mitigations often involve multimodal corridor improvements, street extensions,
+or bicycle infrastructure.
+The model defaults to intersection-level signal or turn-lane fixes regardless
+of project type, reflecting a bias toward the most frequent mitigation pattern
+in general TIA documents.
+
+\begin{table}[h]
+\centering
+\caption{Failure Mode 3: project-type mismatch (zero-shot, Llama-3.3-70B).}
+\begin{tabular}{p{3.0cm}p{4.2cm}p{4.2cm}}
+\toprule
+Input intersection & Ground truth & Prediction \\
+\midrule
+Potter St./ Third St. (LOS E, 22 failing intersections) &
+\texttt{pedestrian\_improvement}: ``Construct sidewalk-level separated bicycle lanes on Potter Street'' &
+\texttt{new\_traffic\_signal}: ``Install traffic signal at Potter Street / Third Street'' \\
+\addlinespace
+Grove St. at I-95 SB Ramps (LOS F, PM peak) &
+\texttt{roundabout\_installation}: ``Conversion to a one-lane roundabout at Grove Street / I-95 SB Ramps'' &
+\texttt{signal\_timing\_optimization}: ``Retiming of I-95 ramp terminal signal to provide additional green for EB approach'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Comparison Across Conditions}
+
+Table~\ref{tab:qualitative_rag} shows the same three cases under the few-shot
+condition (Llama-3.3-70B), illustrating partial improvement in sub-location
+specificity when demonstrations are provided.
+
+\begin{table}[h]
+\centering
+\caption{Few-shot condition on the same cases: partial improvement in
+location specificity, project-type mismatch persists.}
+\label{tab:qualitative_rag}
+\begin{tabular}{p{3.0cm}p{4.2cm}p{4.2cm}}
+\toprule
+Case / Input & Ground truth & Few-shot prediction \\
+\midrule
+Harvill Av. site driveway (Mode 2) &
+\texttt{access\_modification} @ Driveway 1 &
+\texttt{access\_modification} @ ``project site driveway on Harvill Avenue''
+(\emph{closer but imprecise}) \\
+\addlinespace
+Grove St. I-95 SB Ramps (Mode 3) &
+\texttt{roundabout\_installation} @ Grove St. I-95 SB Ramps &
+\texttt{signal\_timing\_optimization} @ Grove St. I-95 SB Ramps
+(\emph{location correct, type wrong}) \\
+\addlinespace
+Lafayette St. (Mode 1) &
+\texttt{access\_modification} @ Future developments &
+\texttt{access\_modification} @ ``project driveways''
+(\emph{type now correct; location still generic}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The few-shot condition shows that demonstrations help models adopt the
+correct intervention vocabulary (Mode 1 now yields \texttt{access\_modification}
+rather than \texttt{signal\_timing\_optimization}) but do not resolve the
+sub-location precision required for Mode 2 or the project-type vocabulary
+gap that produces Mode 3 errors.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\bibliographystyle{elsarticle-num-names}
+\bibliography{references}
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\end{document}
